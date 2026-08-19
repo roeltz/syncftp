@@ -1,0 +1,30 @@
+{
+  "protocol": "sftp",
+  "host": "example.com",
+  "port": 22,
+  "username": "deploy",
+  "password": "change-me",
+  "remoteBaseDir": "/var/www/html",
+  "localBaseDir": ".",
+  "concurrency": 6,
+  "debounceMs": 400,
+  "retry": {
+    "attempts": 3,
+    "delayMs": 500
+  },
+  "ignore": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/.DS_Store"
+  ],
+  "sftp": {
+    "privateKeyPath": "",
+    "passphrase": ""
+  },
+  "ftp": {
+    "secure": false,
+    "secureMode": "explicit",
+    "serverName": "",
+    "secureOptions": {}
+  }
+}

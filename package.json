@@ -1,0 +1,41 @@
+{
+  "name": "syncftp",
+  "version": "0.1.0",
+  "description": "Fast Node.js CLI to sync local files to FTP/SFTP/FTPS on save",
+  "type": "module",
+  "bin": {
+    "syncftp": "bin/syncftp.js"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "lint": "node --check src/index.js src/**/*.js"
+  },
+  "keywords": [
+    "ftp",
+    "sftp",
+    "ftps",
+    "sync",
+    "watch",
+    "cli"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE",
+    ".sync.example.json"
+  ],
+  "dependencies": {
+    "basic-ftp": "^5.0.5",
+    "chalk": "^5.3.0",
+    "chokidar": "^4.0.3",
+    "cli-progress": "^3.12.0",
+    "p-limit": "^6.2.0",
+    "ssh2-sftp-client": "^12.0.1"
+  }
+}
