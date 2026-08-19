@@ -20,6 +20,14 @@
     "cli"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roeltz/syncftp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/roeltz/syncftp/issues"
+  },
+  "homepage": "https://github.com/roeltz/syncftp#readme",
   "engines": {
     "node": ">=20"
   },
