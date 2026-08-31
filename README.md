@@ -44,7 +44,7 @@ You may use the interactive setup or create `.sync.json` yourself. Copy `.sync.e
   "password": "secret",
   "remoteBaseDir": "/var/www/html",
   "localBaseDir": ".",
-  "concurrency": 6,
+  "concurrency": 2,
   "debounceMs": 400,
   "retry": {
     "attempts": 3,
@@ -89,7 +89,7 @@ For example, with `localBaseDir` set to `.` and `remoteBaseDir` set to `/var/www
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `concurrency` | `6` | Maximum simultaneous remote operations. |
+| `concurrency` | `2` | Maximum simultaneous remote operations. Lower this to `1` when the hosting service permits only one connection. |
 | `debounceMs` | `400` | Delay before a saved file is synchronized. Minimum: `50`. |
 | `retry.attempts` | `3` | Number of attempts for a failed operation. Minimum: `1`. |
 | `retry.delayMs` | `500` | Fixed delay between retry attempts in milliseconds. Minimum: `100`. |
@@ -177,3 +177,17 @@ When connecting to an FTPS server by IP address, set `ftp.serverName` to the DNS
 ```
 
 Prefer SFTP key authentication where your server supports it. Treat the FTPS certificate-mismatch override as a temporary diagnostic option, not a normal connection setting.
+
+## Changelog
+
+### 0.2.0
+
+- Flush queued filesystem events on shutdown so pending changes are synchronized before remote connections close.
+- Reduce the default concurrent remote operations from `6` to `2` for better compatibility with shared hosting connection limits.
+- Retry remote deletion failures unless the remote path is already missing.
+- Show a persistent queue summary with pending operation count and known file data size.
+- Simplify deletion activity rows to show only the deleted remote path.
+
+### 0.1.0
+
+Initial version.

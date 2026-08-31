@@ -24,10 +24,12 @@ export class SyncManager {
     this.adaptiveDebounceMs = this.baseDebounceMs;
     this.lastDebounceSampleAt = 0;
     this.debounceTimers = new Map();
+    this.pendingTasks = new Map();
     this.activeUploads = new Map();
     this.pendingUnlinks = [];
 
     this.closed = false;
+    this.updateQueueSize();
   }
 
   getDebounceDelayMs(now = Date.now()) {
@@ -77,23 +79,67 @@ export class SyncManager {
       this.prunePendingUnlinks();
     }
 
-    if (this.debounceTimers.has(key)) {
-      clearTimeout(this.debounceTimers.get(key));
+    const existing = this.debounceTimers.get(key);
+    if (existing) {
+      clearTimeout(existing.timer);
     }
 
     const delayMs = this.getDebounceDelayMs();
 
     const timer = setTimeout(() => {
-      this.debounceTimers.delete(key);
-      this.limit(() => this.processEvent(eventType, absolutePath, stats)).catch((error) => {
-        if (error?.message === 'Aborted') {
-          return;
-        }
-        this.logger.error(`Failed to process ${eventType} ${rel}: ${normalizeError(error)}`);
-      });
+      this.dispatchPendingEvent(key);
     }, delayMs);
 
-    this.debounceTimers.set(key, timer);
+    this.debounceTimers.set(key, {
+      timer,
+      eventType,
+      absolutePath,
+      stats,
+      rel,
+      size: this.getPendingEventSize(eventType, stats)
+    });
+    this.updateQueueSize();
+  }
+
+  updateQueueSize() {
+    const pendingEvents = [
+      ...this.debounceTimers.values(),
+      ...this.pendingTasks.values()
+    ];
+    const pendingBytes = pendingEvents.reduce((total, pendingEvent) => total + pendingEvent.size, 0);
+    this.logger.setQueueSize(pendingEvents.length, pendingBytes);
+  }
+
+  getPendingEventSize(eventType, stats) {
+    if (eventType !== 'add' && eventType !== 'change') {
+      return 0;
+    }
+    return Math.max(0, Number(stats?.size) || 0);
+  }
+
+  dispatchPendingEvent(key) {
+    const pendingEvent = this.debounceTimers.get(key);
+    if (!pendingEvent) {
+      return;
+    }
+
+    this.debounceTimers.delete(key);
+    const task = this.limit(() => this.processEvent(
+      pendingEvent.eventType,
+      pendingEvent.absolutePath,
+      pendingEvent.stats
+    ));
+    this.pendingTasks.set(task, pendingEvent);
+    this.updateQueueSize();
+    task.catch((error) => {
+      if (error?.message === 'Aborted') {
+        return;
+      }
+      this.logger.error(`Failed to process ${pendingEvent.eventType} ${pendingEvent.rel}: ${normalizeError(error)}`);
+    }).finally(() => {
+      this.pendingTasks.delete(task);
+      this.updateQueueSize();
+    });
   }
 
   prunePendingUnlinks() {
@@ -131,7 +177,7 @@ export class SyncManager {
       await this.withRetry(`delete ${rel}`, async () => {
         await this.withSession((client) => client.removeFile(remotePath));
       });
-      this.logger.success(`Deleted remote file ${rel}`);
+      this.logger.deleted(`Remote file ${rel}`);
       return;
     }
 
@@ -155,7 +201,7 @@ export class SyncManager {
       await this.withRetry(`rmdir ${rel}`, async () => {
         await this.withSession((client) => client.removeDir(remotePath));
       });
-      this.logger.success(`Deleted remote directory ${rel}`);
+      this.logger.deleted(`Remote directory ${rel}`);
       return;
     }
   }
@@ -314,15 +360,14 @@ export class SyncManager {
 
   async close() {
     this.closed = true;
-    for (const timer of this.debounceTimers.values()) {
-      clearTimeout(timer);
+    const pendingKeys = [...this.debounceTimers.keys()];
+    for (const key of pendingKeys) {
+      const pendingEvent = this.debounceTimers.get(key);
+      clearTimeout(pendingEvent.timer);
+      this.dispatchPendingEvent(key);
     }
-    this.debounceTimers.clear();
 
-    for (const entry of this.activeUploads.values()) {
-      entry.controller.abort();
-    }
-    this.activeUploads.clear();
+    await Promise.allSettled([...this.pendingTasks.keys()]);
     await this.remotePool.close();
   }
 }

@@ -5,6 +5,7 @@ const DEFAULT_COLUMNS = 100;
 const TICK_INTERVAL_MS = 100;
 const RENDER_INTERVAL_MS = 120;
 const MAX_BAR_WIDTH = 20;
+const QUEUE_STATUS_ID = 'status:queue';
 
 function stripAnsi(input) {
   return String(input).replace(/\u001b\[[0-9;]*m/g, '');
@@ -181,10 +182,23 @@ export class ProgressLogger {
     const maxWidth = Math.max(20, getTerminalColumns() - 1);
     const barWidth = this.resolveBarWidth(maxWidth);
 
-    return this.order
+    const orderedItems = this.order
       .map((id) => this.items.get(id))
-      .filter(Boolean)
+      .filter(Boolean);
+    const queueStatus = orderedItems.find((item) => item.id === QUEUE_STATUS_ID);
+    const visibleItems = orderedItems.filter((item) => item.id !== QUEUE_STATUS_ID);
+    if (queueStatus) {
+      visibleItems.push(queueStatus);
+    }
+
+    return visibleItems
       .map((item) => {
+        if (item.id === QUEUE_STATUS_ID) {
+          return colorLine(fitVisible(item.file, maxWidth), item.status);
+        }
+        if (item.presentation === 'deleted') {
+          return colorLine(fitVisible(`${item.file} deleted`, maxWidth), item.status);
+        }
         const bar = renderBar(item.value, item.totalBytes, barWidth);
         const metrics = formatMetrics(item.value, item.totalBytes);
         const fileLabel = shortName(item.file);
@@ -244,6 +258,22 @@ export class ProgressLogger {
     }
   }
 
+  deleted(msg) {
+    const id = `log:${Date.now()}:${this.logCounter++}`;
+    this.upsertItem(id, {
+      file: msg,
+      totalBytes: 1,
+      value: 0,
+      status: 'done',
+      presentation: 'deleted'
+    });
+    this.markDirty();
+    this.render(true);
+    if (!this.isTty) {
+      process.stdout.write(`${chalk.green(msg)} deleted\n`);
+    }
+  }
+
   warn(msg) {
     this.addLogItem(`[warn] ${msg}`, 'warning');
     this.markDirty();
@@ -260,6 +290,20 @@ export class ProgressLogger {
     if (!this.isTty) {
       process.stdout.write(`${chalk.red('[error]')} ${msg}\n`);
     }
+  }
+
+  setQueueSize(count, pendingBytes = 0) {
+    const queueSize = Math.max(0, Number(count) || 0);
+    const queuedBytes = Math.max(0, Number(pendingBytes) || 0);
+    this.upsertItem(QUEUE_STATUS_ID, {
+      id: QUEUE_STATUS_ID,
+      file: `Queued sync operations: ${queueSize} | Pending file data: ${formatBytes(queuedBytes)}`,
+      totalBytes: 1,
+      value: 0,
+      status: queueSize > 0 ? 'pending' : 'done'
+    });
+    this.markDirty();
+    this.render();
   }
 
   startUpload(absolutePath, totalBytes) {

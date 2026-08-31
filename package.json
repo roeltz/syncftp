@@ -1,6 +1,6 @@
 {
   "name": "syncftp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fast Node.js CLI to sync local files to FTP/SFTP/FTPS on save",
   "type": "module",
   "bin": {

@@ -55,6 +55,9 @@ export class RemoteClientPool {
           await replacement.connect();
           waiter.resolve(replacement);
         } catch (error) {
+          if (this.created > 0) {
+            this.created -= 1;
+          }
           waiter.reject?.(error);
         }
         return;

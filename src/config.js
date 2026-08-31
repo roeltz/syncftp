@@ -8,7 +8,7 @@ const DEFAULTS = {
   port: undefined,
   localBaseDir: '.',
   remoteBaseDir: '/',
-  concurrency: 6,
+  concurrency: 2,
   debounceMs: 400,
   retry: {
     attempts: 3,
@@ -157,7 +157,7 @@ async function createConfigInCurrentDir(cwd) {
     const password = await askWithDefault(rl, 'Password', '');
     const remoteBaseDir = await askWithDefault(rl, 'Remote base directory', '/');
     const localBaseDir = await askWithDefault(rl, 'Local base directory', '.');
-    const concurrency = Number(await askWithDefault(rl, 'Parallel uploads', '6'));
+    const concurrency = Number(await askWithDefault(rl, 'Parallel uploads', '2'));
     const debounceMs = Number(await askWithDefault(rl, 'Debounce milliseconds', '400'));
     const retryAttempts = Number(await askWithDefault(rl, 'Retry attempts', '3'));
     const retryDelayMs = Number(await askWithDefault(rl, 'Retry delay milliseconds', '500'));

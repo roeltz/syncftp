@@ -67,6 +67,12 @@ function isFtpsHostnameMismatch(error) {
   return message.includes("Hostname/IP does not match certificate's altnames") || message.includes('certificate has expired') === false && message.includes('does not match certificate');
 }
 
+function isMissingRemotePathError(error) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  return code === 'ENOENT' || code === '2' || /no such (file|directory)|not found|does not exist/i.test(message);
+}
+
 async function askToContinueOnTlsMismatch(host) {
   const rl = createInterface({ input, output });
   try {
@@ -207,8 +213,10 @@ export class RemoteClient {
       } else {
         await this.ftpClient.remove(remotePath);
       }
-    } catch {
-      // Ignore missing files.
+    } catch (error) {
+      if (!isMissingRemotePathError(error)) {
+        throw error;
+      }
     }
   }
 
@@ -219,8 +227,10 @@ export class RemoteClient {
       } else {
         await this.ftpClient.removeDir(remotePath);
       }
-    } catch {
-      // Ignore missing dirs.
+    } catch (error) {
+      if (!isMissingRemotePathError(error)) {
+        throw error;
+      }
     }
   }
 
